@@ -12,7 +12,7 @@ from shinywidgets import output_widget, render_widget
 import textwrap
 
 # --- 1. AKTUALIZOVANÁ CESTA K SOUBORŮM ---
-DATA_DIR = Path(r"D:\Dokumenty\RVP\shiny_app\processed")
+DATA_DIR = Path(__file__).parent / "processed"
 
 
 def load_data():
