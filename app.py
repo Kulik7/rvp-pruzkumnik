@@ -51,6 +51,9 @@ df["popis_kratky"] = df["popis_kratky"].apply(
 # === UŽIVATELSKÉ ROZHRANÍ (UI) ===
 app_ui = ui.page_sidebar(
     ui.sidebar(
+        ui.h1("RVP Průzkumník", class_="text-primary"),
+        ui.hr(),
+        ui.p("Vyberte ze seznamu, nebo klikněte na bod v mapě / řádek v tabulce:"),
         ui.input_select(
             "rocnik_select",
             "Ročník/Stupeň:",
@@ -60,12 +63,12 @@ app_ui = ui.page_sidebar(
         ui.input_select(
             "obor_select", "Předmět (Obor):", choices=obory_choices, selected="Všechny"
         ),
-        ui.hr(),
-        ui.p("Vyberte ze seznamu, nebo klikněte na bod v mapě / řádek v tabulce:"),
-        ui.input_select("kod_select", "Výchozí cíl (KOD):", choices={}, width="100%"),
-        ui.hr(),
-        ui.input_checkbox(
-            "only_other_subjects", "💡 V tabulce hledat jen v jiných předmětech", True
+        ui.input_select(
+            "kod_select",
+            "Vybraný očekávaný výsledek učení (OVU):",
+            choices={},
+            width="100%",
+            selected=None,
         ),
         width=300,
         bg="#f8f9fa",
@@ -73,29 +76,33 @@ app_ui = ui.page_sidebar(
     ui.layout_columns(
         ui.navset_card_underline(
             ui.nav_panel(
-                "Sémantická mapa (Galaxie)",
+                "Sémantická mapa cílů",
                 ui.card(
                     output_widget("umap_plot", width="100%", height="750px"),
                     full_screen=True,
                 ),
             ),
             ui.nav_panel(
-                "Návrhy na mezipředmětové vazby",
+                "Podobné OVU",
                 ui.card(
+                    ui.input_checkbox(
+                        "only_other_subjects",
+                        "💡 Hledat jen v jiných předmětech",
+                        True,
+                    ),
                     ui.output_data_frame("similar_kods_table"),
                     full_screen=True,
                 ),
             ),
         ),
         ui.card(
-            ui.card_header("🔍 Detail vybraného cíle", class_="bg-primary text-white"),
+            ui.card_header("Detail vybraného OVU", class_="bg-primary text-white"),
             ui.output_ui("pravy_panel_detail"),
             bg="#fdfdfd",
         ),
         col_widths=[8, 4],
         fill=True,  # <-- SLOUPEČKY VYPLNÍ CELOU VÝŠKU STRÁNKY
     ),
-    title="RVP Průzkumník: Interaktivní síť znalostí",
     fillable=True,  # <-- CELÁ APLIKACE SE ROZTÁHNE NA 100 % VÝŠKY OKNA
 )
 
@@ -123,8 +130,7 @@ def server(input, output, session):
     def update_kods():
         plot_df = filtered_data()
         choices = {
-            str(row["orig_index"]): f"{row['kod']} - {row['obor']}"
-            for _, row in plot_df.iterrows()
+            str(row["orig_index"]): f"{row['kod']} " for _, row in plot_df.iterrows()
         }
         current_sel = input.kod_select()
         if current_sel in choices:
@@ -171,23 +177,26 @@ def server(input, output, session):
             ui.h5(kod, class_="text-primary"),
             ui.p(ui.strong("Obor: "), radek["obor"]),
             ui.p(ui.strong("Stupeň: "), radek["rok"]),
+            ui.p(
+                ui.strong("Znění:"),
+                ui.markdown(f"*{radek['popis']}*"),
+            ),
             ui.hr(),
-            ui.p(ui.strong("Znění:")),
-            ui.markdown(f"*{radek['popis']}*"),
-            ui.hr(),
-            ui.div(
+            ui.layout_column_wrap(
                 ui.a(
-                    "🔗 Otevřít kartu OVU",
+                    "Karta OVU",
                     href=url_ovu,
                     target="_blank",
-                    class_="btn btn-outline-primary w-100 mb-2",
+                    class_="btn btn-outline-primary w-100",
                 ),
                 ui.a(
-                    "📚 Metodická podpora",
+                    "Metodická podpora",
                     href=url_metodika,
                     target="_blank",
                     class_="btn btn-primary w-100",
                 ),
+                width="160px",
+                gap="10px",
             ),
         )
 
@@ -206,7 +215,6 @@ def server(input, output, session):
             color="obor",
             hover_name="kod",
             custom_data=["orig_index", "obor", "rok", "popis_kratky"],
-            title="Sémantická mapa cílů",
         )
 
         fig_px.update_traces(
@@ -231,6 +239,14 @@ def server(input, output, session):
             margin=dict(l=0, r=0, t=40, b=0),
             autosize=True,
             height=750,
+            legend=dict(
+                orientation="h",  # Horizontální orientace (položky vedle sebe)
+                yanchor="top",  # Ukotvení horní hrany legendy
+                y=-0.15,  # Pozice pod osou X (záporná hodnota = pod grafem)
+                xanchor="center",  # Ukotvení středu legendy
+                x=0.5,  # Vycentrování na střed šířky
+                title_text="",  # Skrytí nadpisu "obor", aby se ušetřilo místo
+            ),
         )
 
         idx_str = input.kod_select()
@@ -288,7 +304,21 @@ def server(input, output, session):
 
         # Použijeme DataGrid s výběrem jednoho řádku
         return render.DataGrid(
-            result_df, selection_mode="row", width="100%", height="100%"
+            result_df,
+            selection_mode="row",
+            width="100%",
+            styles=[
+                {"cols": [0], "style": {"width": "auto", "text-align": "center"}},
+                {"cols": [1], "style": {"width": "auto", "text-align": "center"}},
+                {
+                    "cols": [2],
+                    "style": {
+                        "width": "auto",
+                        "white-space": "normal",
+                        "min-width": "70%",
+                    },
+                },
+            ],
         )
 
 
