@@ -1,7 +1,3 @@
-"""
-Shiny app pro vizualizaci RVP - Verze s interaktivní tabulkou a metodickou podporou
-"""
-
 import pandas as pd
 import numpy as np
 from shiny import ui, render, reactive, App
@@ -11,7 +7,6 @@ import plotly.graph_objects as go
 from shinywidgets import output_widget, render_widget
 import textwrap
 
-# --- 1. AKTUALIZOVANÁ CESTA K SOUBORŮM ---
 DATA_DIR = Path(__file__).parent / "processed"
 
 
@@ -21,11 +16,9 @@ def load_data():
     return df, sim_matrix
 
 
-print("Načítám data pro aplikaci...")
 df, sim_matrix = load_data()
 
 
-# --- PŘÍPRAVA DAT ---
 def extrahuj_rocnik(kod):
     try:
         casti = str(kod).split("-")
@@ -48,7 +41,6 @@ df["popis_kratky"] = df["popis_kratky"].apply(
     lambda x: "<br>".join(textwrap.wrap(x, width=60))
 )
 
-# === UŽIVATELSKÉ ROZHRANÍ (UI) ===
 app_ui = ui.page_sidebar(
     ui.sidebar(
         ui.h1("RVP Průzkumník", class_="text-primary"),
@@ -101,17 +93,19 @@ app_ui = ui.page_sidebar(
             bg="#fdfdfd",
         ),
         col_widths=[8, 4],
-        fill=True,  # <-- SLOUPEČKY VYPLNÍ CELOU VÝŠKU STRÁNKY
+        fill=True,
     ),
-    fillable=True,  # <-- CELÁ APLIKACE SE ROZTÁHNE NA 100 % VÝŠKY OKNA
+    ui.tags.head(
+        ui.tags.link(rel="icon", href="Planet-01-256.png", type="image/png"),
+    ),
+    fillable=True,
 )
 
 
-# === LOGIKA APLIKACE (SERVER) ===
 def server(input, output, session):
 
     vybrany_z_mapy = reactive.Value(None)
-    # Pomocná proměnná pro mapování řádků tabulky na reálné indexy
+    # maps visible table row indices back to original df indices
     zobrazené_indexy_v_tabulce = reactive.Value([])
 
     @reactive.Calc
@@ -125,7 +119,6 @@ def server(input, output, session):
             temp_df = temp_df[temp_df["obor"] == obor]
         return temp_df
 
-    # Synchronizace dropdownu
     @reactive.Effect
     def update_kods():
         plot_df = filtered_data()
@@ -138,25 +131,21 @@ def server(input, output, session):
         else:
             ui.update_select("kod_select", choices=choices)
 
-    # --- KOUZLO: Synchronizace kliknutí v tabulce ---
     @reactive.Effect
     @reactive.event(input.similar_kods_table_selected_rows)
     def vyber_z_tabulky():
         rows = input.similar_kods_table_selected_rows()
         if rows:
-            # Získáme index řádku v tabulce a převedeme ho na původní index v DF
             row_idx = rows[0]
             orig_idx = zobrazené_indexy_v_tabulce.get()[row_idx]
             ui.update_select("kod_select", selected=str(orig_idx))
 
-    # Synchronizace kliknutí v mapě
     @reactive.Effect
     def sync_click_to_dropdown():
         clicked_idx = vybrany_z_mapy.get()
         if clicked_idx is not None:
             ui.update_select("kod_select", selected=clicked_idx)
 
-    # Pravý panel s detaily a proklikem
     @output
     @render.ui
     def pravy_panel_detail():
@@ -169,7 +158,6 @@ def server(input, output, session):
         radek = df.iloc[int(idx_str)]
         kod = str(radek["kod"])
 
-        # URL adresy
         url_ovu = f"https://prohlednout.rvp.cz/ovu/{kod.lower()}"
         url_metodika = f"https://prohlednout.rvp.cz/metodika/{kod.lower()}"
 
@@ -179,7 +167,11 @@ def server(input, output, session):
             ui.p(ui.strong("Stupeň: "), radek["rok"]),
             ui.p(
                 ui.strong("Znění:"),
-                ui.markdown(f"*{radek['popis']}*"),
+                ui.markdown(f"*{radek['zneni']}*"),
+            ),
+            ui.p(
+                ui.strong("Úroveň splněno:"),
+                ui.markdown(str(radek["charakteristika"])),
             ),
             ui.hr(),
             ui.layout_column_wrap(
@@ -200,7 +192,6 @@ def server(input, output, session):
             ),
         )
 
-    # Interaktivní mapa
     @output
     @render_widget
     def umap_plot():
@@ -240,12 +231,12 @@ def server(input, output, session):
             autosize=True,
             height=750,
             legend=dict(
-                orientation="h",  # Horizontální orientace (položky vedle sebe)
-                yanchor="top",  # Ukotvení horní hrany legendy
-                y=-0.15,  # Pozice pod osou X (záporná hodnota = pod grafem)
-                xanchor="center",  # Ukotvení středu legendy
-                x=0.5,  # Vycentrování na střed šířky
-                title_text="",  # Skrytí nadpisu "obor", aby se ušetřilo místo
+                orientation="h",
+                yanchor="top",
+                y=-0.15,
+                xanchor="center",
+                x=0.5,
+                title_text="",
             ),
         )
 
@@ -269,7 +260,6 @@ def server(input, output, session):
             )
         return fig
 
-    # --- NOVINKA: Klikatelná tabulka podobností ---
     @output
     @render.data_frame
     def similar_kods_table():
@@ -289,9 +279,8 @@ def server(input, output, session):
             ]
 
         sim_pairs.sort(key=lambda x: x[1], reverse=True)
-        top_indices = [x[0] for x in sim_pairs[:15]]  # Ukážeme 15 nejpodobnějších
+        top_indices = [x[0] for x in sim_pairs[:15]]
 
-        # Uložíme si indexy pro pozdější synchronizaci kliknutí
         zobrazené_indexy_v_tabulce.set(top_indices)
 
         result_df = pd.DataFrame(
@@ -302,7 +291,6 @@ def server(input, output, session):
             }
         )
 
-        # Použijeme DataGrid s výběrem jednoho řádku
         return render.DataGrid(
             result_df,
             selection_mode="row",
