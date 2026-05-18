@@ -1,5 +1,5 @@
 # Shinylive export + záplatování index.html
-$APP = "D:\Dokumenty\RVP\shiny_app"
+$APP = $PSScriptRoot
 $DOCS = "$APP\docs"
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 

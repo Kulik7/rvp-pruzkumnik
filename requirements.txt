@@ -3,3 +3,8 @@ numpy
 shiny
 plotly
 shinywidgets
+sentence-transformers
+scikit-learn
+umap-learn
+lxml
+beautifulsoup4

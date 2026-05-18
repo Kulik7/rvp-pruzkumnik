@@ -3,6 +3,7 @@ Preprocessing script: Extract data, compute embeddings, and save to files.
 Run this once to generate the data files for the Shiny app.
 """
 
+import argparse
 from lxml import etree
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -13,11 +14,17 @@ import umap
 import pickle
 from pathlib import Path
 
-RVP_XML_PATH = r"D:\Dokumenty\RVP\shiny_app\data_final_rvp_zv_full_mp_20250821.xml"
-OUTPUT_DIR = Path(r"D:\Dokumenty\RVP\shiny_app\processed")
+ROOT_DIR = Path(__file__).parent
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Precompute embeddings from RVP XML.")
+    parser.add_argument("xml_path", type=Path, help="Path to the RVP XML file")
+    args = parser.parse_args()
+
+    RVP_XML_PATH = args.xml_path
+    OUTPUT_DIR = ROOT_DIR / "processed"
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print("Loading XML data...")
